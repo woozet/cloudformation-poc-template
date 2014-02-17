@@ -1,0 +1,552 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Resources": {
+    "vpcc15541a3": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "InstanceTenancy": "default",
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true"
+      }
+    },
+    "publicAZ2subnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.150.0/24",
+        "AvailabilityZone": "us-east-1b",
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        }
+      }
+    },
+    "privateAZ2subnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.250.0/24",
+        "AvailabilityZone": "us-east-1b",
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        }
+      }
+    },
+    "publicAZ1subnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.100.0/24",
+        "AvailabilityZone": "us-east-1a",
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        }
+      }
+    },
+    "privateAZ1subnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.200.0/24",
+        "AvailabilityZone": "us-east-1a",
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        }
+      }
+    },
+    "igw097b6e6b": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+      }
+    },
+    "doptd45158b6": {
+      "Type": "AWS::EC2::DHCPOptions",
+      "Properties": {
+        "DomainName": "us-east-1.compute.internal",
+        "DomainNameServers": [
+          "AmazonProvidedDNS"
+        ]
+      }
+    },
+    "aclcea1b4ac": {
+      "Type": "AWS::EC2::NetworkAcl",
+      "Properties": {
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        }
+      }
+    },
+    "publicrtb": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        }
+      }
+    },
+    "privatertb": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        }
+      }
+    },
+    "elbPELBOPOCWEB": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "Subnets": [
+          {"Ref": "publicAZ1subnet"},
+          {"Ref": "publicAZ2subnet"}
+        ],
+        "HealthCheck": {
+          "HealthyThreshold": "10",
+          "Interval": "30",
+          "Target": "HTTP:80/",
+          "Timeout": "5",
+          "UnhealthyThreshold": "2"
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "SGPELBOPOCWEB"
+          }
+        ],
+        "Listeners": [
+          {
+            "InstancePort": "80",
+            "LoadBalancerPort": "80",
+            "Protocol": "HTTP",
+            "InstanceProtocol": "HTTP"
+          }
+        ]
+      }
+    },
+    "rdsopdbprd": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "AutoMinorVersionUpgrade": "true",
+        "DBInstanceClass": "db.m1.large",
+        "Iops": "1000",
+        "Port": "3306",
+        "AllocatedStorage": "100",
+        "BackupRetentionPeriod": "1",
+        "DBSnapshotIdentifier" : "opdbprd20140217",
+        "Engine": "mysql",
+        "EngineVersion": "5.5.27",
+        "LicenseModel": "general-public-license",
+        "MasterUsername": "opdb",
+        "MasterUserPassword": "MyPassword",
+        "PreferredBackupWindow": "14:00-14:30",
+        "PreferredMaintenanceWindow": "sun:15:00-sun:15:30",
+        "MultiAZ": "true",
+        "DBParameterGroupName": {
+          "Ref": "dbpgmysqlkor55"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Ref": "SGOPDB"
+          }
+        ],
+        "DBSubnetGroupName": {
+          "Ref": "dbsubnetsubnetdb"
+        },
+        "Tags": [
+          {
+            "Key": "workload-type",
+            "Value": "production"
+          }
+        ]
+      }
+    },
+    "dbsubnetsubnetdb": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "subnet-db",
+        "SubnetIds": [
+          {
+            "Ref": "privateAZ2subnet"
+          },
+          {
+            "Ref": "privateAZ1subnet"
+          }
+        ]
+      }
+    },
+    "dbpgmysqlkor55": {
+      "Type": "AWS::RDS::DBParameterGroup",
+      "Properties": {
+        "Description": "Default option group for mysql 5.5",
+        "Family": "mysql5.5",
+        "Parameters": {
+          "binlog_cache_size": "32768",
+          "character_set_client": "utf8",
+          "character_set_connection": "utf8",
+          "character_set_database": "utf8",
+          "character_set_results": "utf8",
+          "character_set_server": "utf8",
+          "collation_connection": "utf8_general_ci",
+          "collation_server": "utf8_general_ci",
+          "innodb_additional_mem_pool_size": "2097152",
+          "innodb_buffer_pool_size": "{DBInstanceClassMemory*3/4}",
+          "innodb_file_per_table": "1",
+          "innodb_log_buffer_size": "8388608",
+          "key_buffer_size": "16777216",
+          "local_infile": "1"
+        }
+      }
+    },
+    "SGOPDB": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "SG-OPDB",
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "3306",
+            "ToPort": "3306",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "SGPELBOPOCWEB": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "SG-P-ELB-OPOCWEB",
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "443",
+            "ToPort": "443",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "SGOPOCWAS": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "SG-OPOCWAS",
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8500",
+            "ToPort": "8500",
+            "CidrIp": "10.0.0.0/16"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8500",
+            "ToPort": "8500",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8509",
+            "ToPort": "8509",
+            "CidrIp": "10.0.0.0/16"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "SGOPOCWEB": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "SG-OPOCWEB",
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "443",
+            "ToPort": "443",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },    
+    "acl1": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "CidrBlock": "0.0.0.0/0",
+        "Egress": true,
+        "Protocol": "-1",
+        "RuleAction": "allow",
+        "RuleNumber": "100",
+        "NetworkAclId": {
+          "Ref": "aclcea1b4ac"
+        }
+      }
+    },
+    "acl2": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "CidrBlock": "0.0.0.0/0",
+        "Protocol": "-1",
+        "RuleAction": "allow",
+        "RuleNumber": "100",
+        "NetworkAclId": {
+          "Ref": "aclcea1b4ac"
+        }
+      }
+    },
+    "subnetacl1": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "aclcea1b4ac"
+        },
+        "SubnetId": {
+          "Ref": "privateAZ1subnet"
+        }
+      }
+    },
+    "subnetacl2": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "aclcea1b4ac"
+        },
+        "SubnetId": {
+          "Ref": "publicAZ1subnet"
+        }
+      }
+    },
+    "subnetacl3": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "aclcea1b4ac"
+        },
+        "SubnetId": {
+          "Ref": "privateAZ2subnet"
+        }
+      }
+    },
+    "subnetacl4": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "aclcea1b4ac"
+        },
+        "SubnetId": {
+          "Ref": "publicAZ2subnet"
+        }
+      }
+    },
+    "gw1": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        },
+        "InternetGatewayId": {
+          "Ref": "igw097b6e6b"
+        }
+      }
+    },
+    "subnetroute1": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "publicrtb"
+        },
+        "SubnetId": {
+          "Ref": "publicAZ1subnet"
+        }
+      }
+    },
+    "subnetroute3": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "publicrtb"
+        },
+        "SubnetId": {
+          "Ref": "publicAZ2subnet"
+        }
+      }
+    },
+    "subnetroute4": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "privatertb"
+        },
+        "SubnetId": {
+          "Ref": "privateAZ1subnet"
+        }
+      }
+    },
+    "subnetroute5": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "privatertb"
+        },
+        "SubnetId": {
+          "Ref": "privateAZ2subnet"
+        }
+      }
+    },
+    "route1": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "RouteTableId": {
+          "Ref": "publicrtb"
+        },
+        "GatewayId": {
+          "Ref": "igw097b6e6b"
+        }
+      },
+      "DependsOn": "gw1"
+    },
+    "route2": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "RouteTableId": {
+          "Ref": "privatertb"
+        },
+        "GatewayId": {
+          "Ref": "igw097b6e6b"
+        }
+      },
+      "DependsOn": "gw1"
+    },
+    "dchpassoc1": {
+      "Type": "AWS::EC2::VPCDHCPOptionsAssociation",
+      "Properties": {
+        "VpcId": {
+          "Ref": "vpcc15541a3"
+        },
+        "DhcpOptionsId": {
+          "Ref": "doptd45158b6"
+        }
+      }
+    },
+    "ingress1": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "SGOPOCWAS"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "0",
+        "ToPort": "65535",
+        "SourceSecurityGroupId": {
+          "Ref": "SGOPOCWAS"
+        },
+        "SourceSecurityGroupOwnerId": "828103496601"
+      }
+    }
+  },
+  "Description": "Global Open Platform Beta template_20140213",
+  "Outputs": {
+    "publicAZ2subnetId": {
+      "Value": {
+        "Ref": "publicAZ2subnet"
+      }
+    },
+    "privateAZ2subnetId": {
+      "Value": {
+        "Ref": "privateAZ2subnet"
+      }
+    },
+    "publicAZ1subnetId": {
+      "Value": {
+        "Ref": "publicAZ1subnet"
+      }
+    },
+    "privateAZ1subnetId": {
+      "Value": {
+        "Ref": "privateAZ1subnet"
+      }
+    },
+    "publicrtbId": {
+      "Value": {
+        "Ref": "publicrtb"
+      }
+    },
+    "privatertbId": {
+      "Value": {
+        "Ref": "privatertb"
+      }
+    },
+    "SGOPDBName": {
+      "Value": {
+        "Ref": "SGOPDB"
+      }
+    },
+    "SGPELBOPOCWEBName": {
+      "Value": {
+        "Ref": "SGPELBOPOCWEB"
+      }
+    },
+    "SGOPOCWASName": {
+      "Value": {
+        "Ref": "SGOPOCWAS"
+      }
+    },
+    "SGOPOCWEBName": {
+      "Value": {
+        "Ref": "SGOPOCWEB"
+      }
+    }
+  }
+}
