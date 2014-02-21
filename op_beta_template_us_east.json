@@ -1,5 +1,14 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
+  "Parameters": {
+    "InstanceType" : {
+      "Description" : "AppServer EC2 instance type",
+      "Type" : "String",
+      "Default" : "m1.small",
+      "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.xlarge","m3.2xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    }
+  },
   "Resources": {
     "vpcc15541a3": {
       "Type": "AWS::EC2::VPC",
@@ -500,23 +509,32 @@
       "Metadata" : { 
         "AWS::CloudFormation::Init" : { 
           "config" : { 
+              "packages" : {
+              "yum" : {
+                "make" : []
+              }
             } 
           } 
         } 
       },
       "Properties": { 
-        "SecurityGroups": [ { "Ref": "SG-OPOCWAS" } ], 
+        "SecurityGroups": [ { "Ref": "SGOPOCWAS" } ], 
         "ImageId": "ami-fbbabc92", 
-        "InstanceType": { "Ref": "m1.small" },
-        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+        "InstanceType": { "Ref": "InstanceType" },
+        "UserData": { "Fn::Base64" : { "Fn::Join" : ["", [
               "#!/bin/bash\n",
               "yum update -y aws-cfn-bootstrap\n",
 
               "/opt/aws/bin/cfn-init -s ", { "Ref" : "AWS::StackId" }, " -r WebServer ",
               "         --region ", { "Ref" : "AWS::Region" }, "\n",
               "/opt/aws/bin/cfn-signal -e $? '", { "Ref" : "WaitHandle" }, "'\n"
-            ]]}}
+            ]]
+          }
+        }
       } 
+    },
+    "WaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
     }  
   },
   "Description": "Global Open Platform Beta template_20140213",
